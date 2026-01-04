@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: mentra-mcp
+    env: docker
+    plan: free
+    branch: main
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: PACKAGE_NAME
+        sync: false
+      - key: MENTRAOS_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

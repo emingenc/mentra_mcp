@@ -110,3 +110,37 @@ Configure your MCP client to point to this server.
 - `src/services`: Core logic (Mentra SDK, Session Management)
 - `src/tools`: MCP Tool definitions
 - `src/index.ts`: Entry point
+
+## Deployment
+
+### Option 1: Render + Supabase (Recommended for Free Tier)
+Best for indie devs. Uses Supabase for the database (since Render's free tier wipes local files) and Render for hosting.
+
+1.  **Database**: Follow `SUPABASE_SETUP.md` to create your Supabase project and get credentials.
+2.  **Hosting**:
+    *   Sign up at [render.com](https://render.com).
+    *   Create a new **Web Service**.
+    *   Connect your GitHub repository.
+    *   **Runtime**: Docker.
+    *   **Environment Variables**:
+        *   `SUPABASE_URL`: Your Supabase URL.
+        *   `SUPABASE_SERVICE_KEY`: Your Supabase Service Role Key.
+        *   `MENTRAOS_API_KEY`: Your Mentra API Key.
+        *   `PACKAGE_NAME`: `com.yourname.glassmcp`.
+        *   `PORT`: `3000`.
+
+### Option 2: Fly.io (Best for SQLite)
+Allows you to keep using the local SQLite database by attaching a persistent volume.
+
+1.  Install `flyctl`.
+2.  Run `fly launch`.
+3.  Create a volume: `fly volumes create mcp_data`.
+4.  Update `fly.toml` to mount the volume to `/app/mcp.sqlite`.
+
+### Option 3: Self-Hosted (VPS)
+Run standard Docker Compose on any server (DigitalOcean, Hetzner, Oracle Cloud).
+
+```bash
+docker compose up -d
+```
+
