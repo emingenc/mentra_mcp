@@ -2,12 +2,13 @@ import { config } from "./config/env";
 import { MentraService } from "./services/MentraService";
 import { sessionManager } from "./services/SessionManager";
 import { tokenService } from "./services/TokenService";
+import { initDatabase } from "./services/db";
 import { ALL_TOOLS, executeTool } from "./tools";
 
 // --- User Token Management ---
-function getUserFromToken(token: string): string | null {
+async function getUserFromToken(token: string): Promise<string | null> {
   // Check generated passphrase
-  const user = tokenService.validateToken(token);
+  const user = await tokenService.validateToken(token);
   if (user) return user;
 
   // Admin token sees all (for debugging)
@@ -175,7 +176,7 @@ async function handleMCPRequest(req: Request): Promise<Response> {
     }
 
     console.log(`[Auth] Token: ${token}`);
-    const userEmail = getUserFromToken(token);
+    const userEmail = await getUserFromToken(token);
     console.log(`[Auth] User: ${userEmail}`);
 
     if (!userEmail) {
@@ -298,6 +299,8 @@ async function handleRequest(req: Request): Promise<Response> {
 
 // --- Start ---
 async function main() {
+  await initDatabase();
+
   console.log("🚀 Starting Mentra Glass MCP Server...\n");
   console.log("🔐 User Isolation: Users authenticate via Mentra Webview");
   console.log("   Each user gets a unique passphrase token\n");

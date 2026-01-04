@@ -22,11 +22,11 @@ export class MentraService extends AppServer {
   private setupWebview() {
     const app = this.getExpressApp();
 
-    app.get("/webview", (req: AuthenticatedRequest, res: Response) => {
+    app.get("/webview", async (req: AuthenticatedRequest, res: Response) => {
       const userId = req.authUserId;
 
       if (userId) {
-        const token = tokenService.getOrCreateToken(userId);
+        const token = await tokenService.getOrCreateToken(userId);
         
         const html = `
           <!DOCTYPE html>

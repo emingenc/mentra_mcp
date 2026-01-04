@@ -1,6 +1,5 @@
 import { randomInt } from "crypto";
-import * as fs from "fs";
-import * as path from "path";
+import { db } from "./db";
 
 // Expanded word lists for higher entropy
 const ADJECTIVES = [
@@ -32,44 +31,7 @@ const VERBS = [
   "learn", "teach", "read", "write", "draw", "paint", "play", "work"
 ];
 
-const TOKEN_FILE = path.join(process.cwd(), "src", "tokens.json");
-
 class TokenService {
-  private tokens = new Map<string, string>(); // token -> email
-  private userTokens = new Map<string, string>(); // email -> token
-
-  constructor() {
-    this.loadTokens();
-  }
-
-  private loadTokens() {
-    try {
-      if (fs.existsSync(TOKEN_FILE)) {
-        const data = fs.readFileSync(TOKEN_FILE, "utf-8");
-        const json = JSON.parse(data);
-        for (const [email, token] of Object.entries(json)) {
-          this.tokens.set(token as string, email);
-          this.userTokens.set(email, token as string);
-        }
-        console.log(`[TokenService] Loaded ${this.tokens.size} tokens from disk`);
-      }
-    } catch (e) {
-      console.error("[TokenService] Failed to load tokens:", e);
-    }
-  }
-
-  private saveTokens() {
-    try {
-      const data: Record<string, string> = {};
-      for (const [email, token] of this.userTokens.entries()) {
-        data[email] = token;
-      }
-      fs.writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2));
-    } catch (e) {
-      console.error("[TokenService] Failed to save tokens:", e);
-    }
-  }
-
   // Generate a secure readable passphrase (e.g., "purple-tiger-jump-83921")
   private generatePassphrase(): string {
     const adj = ADJECTIVES[randomInt(ADJECTIVES.length)];
@@ -82,30 +44,20 @@ class TokenService {
   }
 
   // Get or create a token for a user
-  getOrCreateToken(email: string): string {
-    if (this.userTokens.has(email)) {
-      return this.userTokens.get(email)!;
+  async getOrCreateToken(email: string): Promise<string> {
+    const existingToken = await db.getToken(email);
+    if (existingToken) {
+      return existingToken;
     }
 
     const token = this.generatePassphrase();
-    this.tokens.set(token, email);
-    this.userTokens.set(email, token);
-    this.saveTokens(); // Persist to disk
+    await db.saveToken(email, token);
     return token;
   }
 
   // Validate token
-  validateToken(token: string): string | null {
-    return this.tokens.get(token) || null;
-  }
-  
-  // Initialize with config tokens
-  loadConfigTokens(tokens: Record<string, string>) {
-    for (const [token, email] of Object.entries(tokens)) {
-      this.tokens.set(token, email);
-      this.userTokens.set(email, token);
-    }
-    this.saveTokens();
+  async validateToken(token: string): Promise<string | null> {
+    return await db.getUserByToken(token);
   }
 }
 
