@@ -27,27 +27,66 @@ MCP Client (Claude/Cursor)
 - [Bun](https://bun.sh) (v1.0+)
 - Mentra Developer Account & API Key
 
-## Setup
+## Authentication
 
-1. **Clone & Install**
-   ```bash
-   git clone <repo>
-   cd mcp-for-next.js
-   bun install
-   ```
+This server uses a secure token-based authentication system.
 
-2. **Environment Variables**
-   Create a `.env` file (or set env vars):
-   ```bash
-   PACKAGE_NAME="com.yourname.glass-mcp"
-   MENTRAOS_API_KEY="your-mentra-api-key"
-   PORT=3000
-   MENTRA_INTERNAL_PORT=3099
-   # Optional: Map tokens to emails
-   MCP_USER_TOKENS='{"my-secret-token": "user@example.com"}'
-   # Optional: Admin token
-   MCP_ADMIN_TOKEN="admin-secret"
-   ```
+1.  **Start the Server** (Locally or Deployed).
+2.  **Open the Webview**:
+    *   Local: `http://localhost:3000/webview`
+    *   Deployed: `https://your-app.onrender.com/webview`
+3.  **Login**: Sign in with your Mentra account.
+4.  **Get Token**: Copy the **Access Token** displayed on the screen.
+
+## Connecting to Clients
+
+### 1. GitHub Copilot (VS Code)
+
+Add the server to your MCP configuration file (usually `~/.config/github-copilot/mcp.json` or via the VS Code command "MCP: Manage MCP Servers").
+
+```json
+{
+  "mcpServers": {
+    "mentra-glasses": {
+  "type": "sse",
+  "url": "mcp url here",
+  "headers": {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+  }
+  }
+}
+```
+*Note: Replace the URL and Token with your actual values.*
+
+### 2. Claude Desktop
+
+Edit your configuration file:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "mentra-glass": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sse-client"],
+      "env": {
+        "MCP_SSE_URL": "http://localhost:3000/mcp",
+        "MCP_SSE_HEADERS": "{\"Authorization\": \"Bearer YOUR_ACCESS_TOKEN\"}"
+      }
+    }
+  }
+}
+```
+
+### 3. Cursor
+
+1.  Go to **Settings** > **Features** > **MCP**.
+2.  Click **+ Add New MCP Server**.
+3.  **Name**: `mentra-glass`
+4.  **Type**: `SSE`
+5.  **URL**: `https://your-app.onrender.com/mcp?token=YOUR_ACCESS_TOKEN`
+    *(Note: Cursor may not support custom headers yet, so we support passing the token via query parameter as a fallback)*
 
 ## Running Locally
 
@@ -62,39 +101,13 @@ bun run dev
 The server will start on `http://localhost:3000`.
 - `/mcp`: MCP JSON-RPC endpoint
 - `/health`: Health check
+- `/webview`: Auth & Settings
 
 ## Running with Docker
 
 ```bash
-# Build
-bun run docker:build
-
-# Run
-bun run docker:up
-```
-
-## Usage with Claude Desktop / Cursor
-
-Configure your MCP client to point to this server.
-
-**HTTP Config:**
-- URL: `http://localhost:3000/mcp`
-- Headers: `Authorization: Bearer user@example.com`
-
-**Stdio Config (via wrapper):**
-```json
-{
-  "mcpServers": {
-    "mentra-glass": {
-      "command": "node",
-      "args": ["path/to/scripts/mcp-stdio-wrapper.mjs"],
-      "env": {
-        "MCP_URL": "http://localhost:3000/mcp",
-        "MCP_TOKEN": "user@example.com"
-      }
-    }
-  }
-}
+# Build & Run
+docker compose up --build -d
 ```
 
 ## Available Tools
