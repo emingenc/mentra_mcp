@@ -109,7 +109,7 @@ export class MentraService extends AppServer {
 
     // Voice transcription listener
     session.events.onTranscription((t) => {
-      debugLog(`Transcription [${userId}]:`, t.text, { final: t.isFinal });
+      if (t.isFinal) debugLog(`Transcription [${userId}]:`, t.text);
       data.transcriptions.push({ text: t.text, isFinal: t.isFinal, timestamp: new Date().toISOString() });
       if (data.transcriptions.length > 100) data.transcriptions.shift();
     });
