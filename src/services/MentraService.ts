@@ -3,6 +3,57 @@ import { config, debugLog } from "../config/env";
 import { sessionManager, GlassesSession } from "./SessionManager";
 import { tokenService } from "./TokenService";
 import type { Request, Response } from "express";
+import * as fs from "fs";
+import * as path from "path";
+
+// Load trigger patterns from file
+const TRIGGERS_PATH = path.join(process.cwd(), "triggers.txt");
+let triggerPatterns: RegExp[] = [];
+
+function loadTriggers(): RegExp[] {
+  try {
+    if (fs.existsSync(TRIGGERS_PATH)) {
+      const content = fs.readFileSync(TRIGGERS_PATH, "utf-8");
+      return content
+        .split("\n")
+        .filter((line) => line.trim() && !line.startsWith("#"))
+        .map((pattern) => new RegExp(pattern.trim(), "i"));
+    }
+  } catch (e) {
+    debugLog(`Failed to load triggers: ${e}`);
+  }
+  return [];
+}
+
+function matchesTrigger(text: string): boolean {
+  if (triggerPatterns.length === 0) {
+    triggerPatterns = loadTriggers();
+  }
+  return triggerPatterns.some((p) => p.test(text));
+}
+
+// Simple LLM call - using OpenRouter API
+async function callLLM(prompt: string): Promise<string> {
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.openrouterKey || process.env.OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "qwen/qwen-2.5-7b-instruct",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 100,
+      }),
+    });
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "No response";
+  } catch (e) {
+    debugLog(`LLM error: ${e}`);
+    return "Error getting response";
+  }
+}
 
 interface AuthenticatedRequest extends Request {
   authUserId?: string;
@@ -108,8 +159,17 @@ export class MentraService extends AppServer {
     sessionManager.addSession(sessionId, data);
 
     // Voice transcription listener
-    session.events.onTranscription((t) => {
-      if (t.isFinal) debugLog(`Transcription [${userId}]:`, t.text);
+    session.events.onTranscription(async (t) => {
+      if (t.isFinal) {
+        debugLog(`Transcription [${userId}]:`, t.text);
+        
+        // Check if matches trigger patterns
+        if (matchesTrigger(t.text)) {
+          debugLog(`Trigger matched: ${t.text}`);
+          const response = await callLLM(t.text);
+          await session.layouts.showTextWall(response);
+        }
+      }
       data.transcriptions.push({ text: t.text, isFinal: t.isFinal, timestamp: new Date().toISOString() });
       if (data.transcriptions.length > 100) data.transcriptions.shift();
     });

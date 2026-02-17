@@ -14,6 +14,7 @@ const envSchema = z.object({
   }).default("{}"),
   MCP_ADMIN_TOKEN: z.string().optional(),
   DEBUG: z.string().transform((val) => val === "true" || val === "1").default("false"),
+  OPENROUTER_API_KEY: z.string().optional(),
 });
 
 // Validate and export
@@ -27,6 +28,7 @@ export const config = {
   userTokens: env.MCP_USER_TOKENS as Record<string, string>,
   adminToken: env.MCP_ADMIN_TOKEN,
   debug: env.DEBUG,
+  openrouterKey: env.OPENROUTER_API_KEY,
 };
 
 // Secure debug logger - never logs sensitive data

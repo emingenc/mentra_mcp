@@ -1,0 +1,9 @@
+# Trigger patterns for voice conversation
+# One regex per line - matches trigger LLM processing
+^simbot[:\s]
+^hey simbot
+^hi simbot
+^what time
+^weather
+^calculate\s
+^\?
