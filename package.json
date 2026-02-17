@@ -14,7 +14,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@mentra/sdk": "latest",
+    "@mentra/sdk": "^2.1.29",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@supabase/supabase-js": "^2.89.0",
     "express": "^4.21.2",
