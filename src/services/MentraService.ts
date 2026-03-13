@@ -2,11 +2,6 @@ import { AppServer, AppSession, ViewType } from "@mentra/sdk";
 import { config, debugLog } from "../config/env";
 import { sessionManager, GlassesSession } from "./SessionManager";
 import { tokenService } from "./TokenService";
-import type { Request, Response } from "express";
-
-interface AuthenticatedRequest extends Request {
-  authUserId?: string;
-}
 
 export class MentraService extends AppServer {
   constructor() {
@@ -20,10 +15,8 @@ export class MentraService extends AppServer {
   }
 
   private setupWebview() {
-    const app = this.getExpressApp();
-
-    app.get("/webview", async (req: AuthenticatedRequest, res: Response) => {
-      const userId = req.authUserId;
+    this.get("/webview", async (c) => {
+      const userId = c.get("authUserId");
 
       if (userId) {
         const token = await tokenService.getOrCreateToken(userId);
@@ -61,7 +54,7 @@ export class MentraService extends AppServer {
                 <h3>Configuration</h3>
                 <div class="config-item">
                   <div class="label">Server URL</div>
-                  <div class="value">${req.protocol}://${req.get('host')}/mcp</div>
+                  <div class="value">${new URL(c.req.url).protocol}//${new URL(c.req.url).host}/mcp</div>
                 </div>
                 <div class="config-item">
                   <div class="label">Authorization Header</div>
@@ -71,7 +64,7 @@ export class MentraService extends AppServer {
             </body>
           </html>
         `;
-        res.send(html);
+        return c.html(html);
       } else {
         const html = `
           <!DOCTYPE html>
@@ -96,7 +89,7 @@ export class MentraService extends AppServer {
             </body>
           </html>
         `;
-        res.send(html);
+        return c.html(html);
       }
     });
   }
@@ -122,7 +115,7 @@ export class MentraService extends AppServer {
     });
 
     // Handle disconnect
-    session.events.onDisconnect?.(() => {
+    session.events.onDisconnected?.(() => {
       debugLog(`Glasses disconnected: ${userId}`);
       sessionManager.removeSession(sessionId);
     });
@@ -133,12 +126,12 @@ export class MentraService extends AppServer {
     });
 
     // Handle SDK errors gracefully - ignore unknown message type errors from new cloud features
-    session.events.onError?.((error: Error) => {
-      if (error.message.includes("Unrecognized message type")) {
+    session.events.onError?.((error: any) => {
+      if (error.message && error.message.includes("Unrecognized message type")) {
         debugLog(`Ignoring known SDK issue: ${error.message}`);
         return;
       }
-      debugLog(`Session error: ${error.message}`);
+      debugLog(`Session error: ${error.message || error.code || 'Unknown error'}`);
     });
   }
 }
