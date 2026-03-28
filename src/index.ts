@@ -289,24 +289,63 @@ async function handleRequest(req: Request): Promise<Response> {
 }
 
 // --- Start ---
+// Top-level server references for graceful shutdown
+let mentraApp: MentraService | null = null;
+let bunServer: any = null;
+
 async function main() {
   await initDatabase();
 
   console.log("🚀 Mentra Glass MCP Server starting...");
 
-  // Start Mentra AppServer on internal port
-  const mentraApp = new MentraService();
-  await mentraApp.start();
+  try {
+    // Start Mentra AppServer on internal port
+    mentraApp = new MentraService();
+    await mentraApp.start();
 
-  // Start unified Bun HTTP server on main port
-  Bun.serve({
-    port: config.port,
-    hostname: "0.0.0.0",
-    fetch: handleRequest,
-    idleTimeout: 255, // Keep SSE connections alive
-  });
+    // Start unified Bun HTTP server on main port
+    bunServer = Bun.serve({
+      port: config.port,
+      hostname: "0.0.0.0",
+      fetch: handleRequest,
+      idleTimeout: 255, // Keep SSE connections alive
+    });
 
-  console.log(`✨ Server ready on port ${config.port}`);
+    console.log(`✨ Server ready on port ${config.port}`);
+
+    // Graceful shutdown helper
+    const shutdown = (reason?: string) => {
+      console.log(`🛑 Shutting down... ${reason || ''}`);
+      try {
+        mentraApp?.stop();
+      } catch (e) {
+        console.error('error stopping mentraApp', e);
+      }
+      try {
+        if (bunServer && typeof bunServer.stop === 'function') bunServer.stop();
+      } catch (e) {
+        // Not all Bun versions expose stop()
+      }
+      // Keep logs flushed briefly then exit
+      setTimeout(() => process.exit(0), 200);
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('uncaughtException', (err) => {
+      console.error('uncaughtException', err);
+      shutdown('uncaughtException');
+    });
+    process.on('unhandledRejection', (reason) => {
+      console.error('unhandledRejection', reason);
+      shutdown('unhandledRejection');
+    });
+
+  } catch (e) {
+    console.error('Startup error:', e);
+    try { mentraApp?.stop(); } catch (err) {}
+    process.exit(1);
+  }
 }
 
-main().catch(console.error);
+main();
